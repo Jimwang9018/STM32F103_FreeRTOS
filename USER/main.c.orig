@@ -1,0 +1,124 @@
+#include "stm32f10x.h"
+#include "stm32f10x_it.h"
+#include <stdio.h>
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "list.h"
+#include "portable.h"
+#include "FreeRTOSConfig.h"
+#include "semphr.h"
+
+#include "usart1.h"
+#include "usart2.h"
+#include "delay.h"
+#include "led.h"
+#include "I2C.h"
+#include "MPU9250.h"
+#include "imu.h"
+#include "tim.h"
+#include "ADC.h"
+#include "moto.h"
+#include "ble.h"
+#include "key.h"
+#include "comm.h"
+#include "power.h"
+#include "flash.h"
+#include "dog.h"
+#include "bleTask.h"
+#include "ledTask.h"
+#include "imuTask.h"
+#include "keyTask.h"
+#include "bleReceiveTask.h"
+#include "powerTask.h"
+#include "usart1Task.h"
+#include "w25q256.h"
+#include "w25q256Task.h"
+#include "motoTask.h"
+#include "wifiTask.h"
+#include "usart3.h"
+#include "esp8266.h"
+
+//#define DEBUG_PC 
+//#define USING_USART1
+
+
+xQueueHandle xAngleBuffSend;
+xQueueHandle xAngleBuffStorage;
+xTaskHandle xHandle;
+xSemaphoreHandle xSemaphoreBleVSAck;
+xSemaphoreHandle xSemaphoreWifi;
+controlSemaphoreStruct controlSemaphore;   //¿ØÖÆÐÅºÅ
+xTaskHandle xHandleWifi;
+wifiConfigStruct wifiConfig;
+
+void prvSetupHardware( void );
+
+/*-----------------------------------------------------------*/
+
+int main(void)
+{	
+	prvSetupHardware();
+	
+	//xTaskCreate( vLEDTestTask, ( signed portCHAR * ) "LEDTEST", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+1, NULL );
+	xTaskCreate( vIMUTask, ( signed portCHAR * ) "IMU", configMIDMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+15, NULL );
+	xTaskCreate( vLEDMotoTask, ( signed portCHAR * ) "LEDMOTO", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+10, NULL );
+	xTaskCreate( vKeyOnTask, ( signed portCHAR * ) "KEY", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+4, NULL );
+	xTaskCreate( vBLEReceiveTask, ( signed portCHAR * ) "COMM", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+5, NULL );
+	xTaskCreate( vPowerTask, ( signed portCHAR * ) "POWER", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+2, NULL );
+	//xTaskCreate( vW25q256Task, ( signed portCHAR * ) "FLASH", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+1, NULL );
+	xTaskCreate( vMotoTask, ( signed portCHAR * ) "MOTO", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+9, NULL );
+	xTaskCreate( vWifiTask, ( signed portCHAR * ) "WIFI", 1024, NULL, tskIDLE_PRIORITY+1, NULL );	
+	//xTaskCreate( vADCTestTask, ( signed portCHAR * ) "ADC", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+15, NULL );
+	
+	#ifdef USING_USART1
+		xTaskCreate( vUsatt1SendAngleTask, ( signed portCHAR * ) "USART1SENDANGLE", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+3, NULL );
+	#endif
+	
+	#ifdef USING_BLE
+		xTaskCreate( BLE_SendDataTask, ( signed portCHAR * ) "BLESENDDATA", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+3, NULL );
+	#endif
+	
+	vTaskStartScheduler();
+	
+	while(1);
+
+	return 0;
+}
+
+/*-----------------------------------------------------------*/
+
+void prvSetupHardware( void )
+{
+	LED_GPIO_Config();
+	ADC1_Init();
+	
+	//#ifdef USING_USART1
+		xSerialPortInitMinimal( 115200, 32 );
+	//#endif
+	
+	#ifdef USING_BLE
+		Usart2Init( 115200, 32 );
+		BLEIOInit();
+	#endif
+	Usart3Init(9600);
+	IIC_Init();
+	Tim3_Init(5000);
+	Tim4_Init(2500);
+	
+	Moto_Init();
+	
+	powerInit();
+	//IWDG_Init(4,2500);
+	SPI_FLASH_Init();
+	//SPI_Flash_WAKEUP();
+	SPI_Flash_4byteAddress();
+	
+	WiFi_Config();
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
+	
+}
+
+
+

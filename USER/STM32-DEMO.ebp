@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<EmBlocks_project_file>
+	<EmBlocksVersion release="2.30" revision="1" />
+	<FileVersion major="1" minor="0" />
+	<Project>
+		<Option title="STM32-DEMO" />
+		<Option pch_mode="2" />
+		<Option compiler="rlarm" />
+		<Build>
+			<Target title="ADC1-DEMO">
+				<Option output="STM32-DEMO.axf" />
+				<Option object_output="..\Output\" />
+				<Option type="0" />
+				<Option create_hex="1" />
+				<Option compiler="rlarm" />
+				<Device>
+					<Add option='$device=&quot;Cortex-M3&quot;' />
+					<Add option="$scatter=..\Output\STM32-DEMO.sct" />
+				</Device>
+				<Compiler>
+					<Add option="--debug" />
+					<Add option="--apcs=interwork" />
+					<Add option="-O0" />
+					<Add option="--c99" />
+					<Add option="-DUSE_STDPERIPH_DRIVER," />
+					<Add option="-DSTM32F10X_MD" />
+					<Add directory="$(TARGET_COMPILER_DIR)\..\INC\ST\STM32F10x\" />
+					<Add directory="..\CMSIS" />
+					<Add directory="..\USER" />
+					<Add directory="..\FWlib\inc" />
+					<Add directory="..\FWlib\src" />
+					<Add directory="..\FreeRTOS" />
+					<Add directory="..\FreeRTOS\include" />
+					<Add directory="..\HAL" />
+				</Compiler>
+				<Assembler>
+					<Add option="--debug" />
+					<Add option="--apcs=interwork" />
+				</Assembler>
+				<Linker>
+					<Add option="--library_type=microlib" />
+					<Add option="--strict" />
+				</Linker>
+			</Target>
+		</Build>
+		<Unit filename="..\CMSIS\core_cm3.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\CMSIS\startup\startup_stm32f10x_md.s">
+			<Option compilerVar="ASM" />
+		</Unit>
+		<Unit filename="..\CMSIS\system_stm32f10x.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\misc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_adc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_bkp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_can.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_cec.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_crc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_dac.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_dbgmcu.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_dma.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_exti.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_flash.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_fsmc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_gpio.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_i2c.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_iwdg.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_pwr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_rcc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_rtc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_sdio.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_spi.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_tim.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_usart.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FWlib\src\stm32f10x_wwdg.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FreeRTOS\croutine.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FreeRTOS\heap_2.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FreeRTOS\include\FreeRTOS.h" />
+		<Unit filename="..\FreeRTOS\include\FreeRTOSConfig.h" />
+		<Unit filename="..\FreeRTOS\include\StackMacros.h" />
+		<Unit filename="..\FreeRTOS\include\croutine.h" />
+		<Unit filename="..\FreeRTOS\include\list.h" />
+		<Unit filename="..\FreeRTOS\include\mpu_wrappers.h" />
+		<Unit filename="..\FreeRTOS\include\portable.h" />
+		<Unit filename="..\FreeRTOS\include\portmacro.h" />
+		<Unit filename="..\FreeRTOS\include\projdefs.h" />
+		<Unit filename="..\FreeRTOS\include\queue.h" />
+		<Unit filename="..\FreeRTOS\include\semphr.h" />
+		<Unit filename="..\FreeRTOS\include\task.h" />
+		<Unit filename="..\FreeRTOS\include\timers.h" />
+		<Unit filename="..\FreeRTOS\list.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FreeRTOS\port.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FreeRTOS\queue.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FreeRTOS\tasks.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\FreeRTOS\timers.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\ADC.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\I2C.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\MPU9250.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\ble.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\delay.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\dog.c">
+			<Option compilerVar="CC" />
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="..\HAL\esp8266.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\key.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\led.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\moto.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\power.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\tim.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\usart2.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\usart3.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="..\HAL\w25q256.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bleReceiveTask.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bleTask.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="imu.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="imuTask.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="keyTask.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ledTask.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="main.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="main.h" />
+		<Unit filename="motoTask.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="stm32f10x_it.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Extensions>
+			<code_completion />
+			<debugger />
+			<envvars />
+		</Extensions>
+	</Project>
+</EmBlocks_project_file>

@@ -1,0 +1,33 @@
+#ifndef _POWER_H
+#define _POWER_H
+
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "semphr.h"
+#include "imu.h"
+#include "main.h"
+
+#define ON  1
+#define OFF 0
+#define brushSwith(a) if(a) \
+											{	controlSemaphore.xKeyLedTestOnFlag = 1;\
+												controlSemaphore.xKeyBleSendData = 1;\
+												controlSemaphore.xKeyLedGreenControl = 1;\
+												controlSemaphore.xKeyMotoFlag = 1;}\
+											else {controlSemaphore.xKeyLedTestOnFlag = 0;\
+														controlSemaphore.xKeyBleSendData = 0;\
+														controlSemaphore.xKeyLedGreenControl = 0;\
+														controlSemaphore.xKeyMotoFlag = 0;}
+													
+#define vcc2Power(a)	if (a)	\
+					GPIO_SetBits(GPIOB,GPIO_Pin_12);\
+					else		\
+					GPIO_ResetBits(GPIOB,GPIO_Pin_12)		
+
+#define chargeTest()  GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_4)
+
+			
+void powerOff(void);
+void powerInit(void);
+
+#endif

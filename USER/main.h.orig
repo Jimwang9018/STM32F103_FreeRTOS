@@ -1,0 +1,52 @@
+#ifndef __MAIN_H
+#define	__MAIN_H
+
+#include "stm32f10x.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "list.h"
+#include "portable.h"
+#include "FreeRTOSConfig.h"
+#include "semphr.h"
+
+#define LOW  1
+#define VERYLOW 2
+
+
+typedef struct{
+	u8 burshStatus;
+	u8 charging;
+	u8 batterValue;
+	u8 bleConncet;
+	u8 xKeyLedTestOnFlag;
+	u8 xKeyBleSendData;
+	u8 xKeyLedGreenControl;
+	u8 xKeyMotoFlag;
+	enum Stutas{on,off,listAP,addAP,addServer,sendTest} wifiStutas;
+	} controlSemaphoreStruct;
+
+typedef struct{
+	char  APNamePassword[64];
+	char  serverIP[64];
+	}wifiConfigStruct;
+
+typedef struct{
+				float X;
+				float Y;
+				float Z;}S_FLOAT_XYZ;
+
+
+
+extern xQueueHandle xAngleBuffSend;
+extern xQueueHandle xAngleBuffStorage;
+extern xTaskHandle xHandle;
+extern xSemaphoreHandle xSemaphoreBleVSAck;
+extern xSemaphoreHandle xSemaphoreWifi;
+
+extern controlSemaphoreStruct controlSemaphore;
+extern xTaskHandle xHandleWifi;
+extern wifiConfigStruct wifiConfig;
+#endif /* __LED_H */
+

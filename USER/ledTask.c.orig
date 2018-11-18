@@ -1,0 +1,77 @@
+#include "ledTask.h"
+#include "stm32f10x.h"
+#include "ble.h"
+#include "led.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "list.h"
+#include "portable.h"
+#include "FreeRTOSConfig.h"
+#include "semphr.h"
+#include "main.h" 
+#include "moto.h"
+
+void  vLEDMotoTask(void *pvParameters)
+{
+	static u8 startFlag = 0;
+	while(1)
+	{
+		if(controlSemaphore.bleConncet == 1)																									//蓝牙提示
+		{
+			ledGreenOff();
+			for(u8 i=0;i<10;i++)
+			{
+				ledBlueBlink();
+				vTaskDelay( 250/portTICK_RATE_MS );
+			}
+			ledGreenOn();
+			controlSemaphore.bleConncet = 0;
+		}
+		
+		if(controlSemaphore.charging == 0)																											//刷牙提示
+		{
+			if(controlSemaphore.bleConncet != 1)
+			{
+				if(controlSemaphore.xKeyLedGreenControl)
+				{
+					ledGreenBreath();
+					//Moto_PwmRflash(800);  
+				}else{
+					ledGreenOn();
+					//Moto_PwmRflash(0);
+				}
+				ledBlue(OFF);
+			}
+		}
+		
+		if(controlSemaphore.charging)                                                            //充电提示
+		{
+			ledGreenOff();
+			ledRedBreath();
+		}else
+		{
+			ledRedOff();
+		}
+		
+		if((controlSemaphore.batterValue == LOW) && startFlag == 0)  // 电压低提示
+		{
+			ledGreenOff();
+			ledBlue(OFF);
+			for(u8 i=0;i<10;i++)
+			{
+				ledRedOn();
+				vTaskDelay( 250/portTICK_RATE_MS );
+				ledRedOff();
+				vTaskDelay( 250/portTICK_RATE_MS );
+			}
+			startFlag = 1;
+		}
+			startFlag = 1;
+		
+		vTaskDelay( 10/portTICK_RATE_MS );
+	}
+	
+}
+
+///*-----------------------------------------------------------*/

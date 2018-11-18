@@ -1,0 +1,127 @@
+#include "bleReceiveTask.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "list.h"
+#include "portable.h"
+#include "FreeRTOSConfig.h"
+#include "semphr.h"
+
+#include "usart1.h"
+#include "usart2.h"
+#include "delay.h"
+#include "led.h"
+#include "I2C.h"
+#include "MPU9250.h"
+#include "imu.h"
+#include "tim.h"
+#include "ADC.h"
+#include "moto.h"
+#include "ble.h"
+#include "key.h"
+#include "comm.h"
+#include "power.h"
+#include "flash.h"
+#include "dog.h"
+#include "bleTask.h"
+#include "wifiTask.h"
+#include "esp8266.h"
+#include "main.h"
+
+void vBLEReceiveTask(void *pvParameters)
+{
+	u8 key = 0;
+	static u8 wifiOn = 0;
+	
+	static signed portBASE_TYPE xHigherPriorityTaskWoken;
+	xHigherPriorityTaskWoken = pdFALSE;
+	vSemaphoreCreateBinary(xSemaphoreWifi);
+		
+	while(1)
+	{
+		if( xSemaphoreTake( xSemaphoreBLEReadFull, portMAX_DELAY ) == pdTRUE )
+		{ 
+			if(APPbuffDataPrepare(&BLEReceiveBuff))
+			{
+				switch(command)
+				{
+					case COMbasedControl: 
+					{
+						if(BLEReceiveBuff.data[5] == 0x01)
+						{
+							if( xSemaphoreTake( xSemaphoreBLESendOver, ( portTickType ) 10 ) == pdTRUE )
+							{
+								BLE_SendAck(AckBurshOn);
+								xSemaphoreGive( xSemaphoreBleVSAck );
+							}
+				
+							brushSwith(ON);
+							controlSemaphore.burshStatus = ON;
+							
+						}else if(BLEReceiveBuff.data[5] == 0x02)
+						{
+							if( xSemaphoreTake( xSemaphoreBLESendOver, ( portTickType ) 10 ) == pdTRUE )
+							{		
+								BLE_SendAck(AckBurshOff);
+								xSemaphoreGive( xSemaphoreBleVSAck );
+							}
+							
+							brushSwith(OFF);
+							controlSemaphore.burshStatus = OFF;			
+						}	
+					} break;
+					case COMwifiControl: 
+					{
+						key = BLEReceiveBuff.data[4] & 0x0f;
+						if(key == 0x01 )
+						{
+							if((BLEReceiveBuff.data[5] == 0x01) && (wifiOn == 0))
+							{
+								//xTaskCreate( vWifiTask, ( signed portCHAR * ) "WIFI", 1520, NULL, tskIDLE_PRIORITY+1, &xHandleWifi );										
+								controlSemaphore.wifiStutas = on;
+								wifiOn = 1;
+								//PC_Usart("wfwef\r\n");
+							}else if(BLEReceiveBuff.data[5] == 0x02 && wifiOn == 1)
+							{
+								vTaskDelete( xHandleWifi );
+								controlSemaphore.wifiStutas = off;
+								wifiOn = 0;
+							}else if(BLEReceiveBuff.data[5] == 0x03 && wifiOn == 1)
+							{
+								controlSemaphore.wifiStutas = listAP;	
+							}else if(BLEReceiveBuff.data[5] == 0x04 && wifiOn == 1)
+							{
+								controlSemaphore.wifiStutas = addAP;
+							}
+							else if(BLEReceiveBuff.data[5] == 0x05 && wifiOn == 1)
+							{
+								controlSemaphore.wifiStutas = addServer;
+							}else if(BLEReceiveBuff.data[5] == 0x06 && wifiOn == 1)
+							{
+								controlSemaphore.wifiStutas = sendTest;
+							}
+						}else if(key == 0x02)
+						{
+							for(u8 i = 0; i < BLEReceiveBuff.data[2]-5; i++)
+							{
+								wifiConfig.APNamePassword[i] = (char)BLEReceiveBuff.data[5+i];
+							}
+							controlSemaphore.wifiStutas = addAP;
+						}else if(key == 0x03)
+						{
+							for(u8 i = 0; i < BLEReceiveBuff.data[2]-5; i++)
+							{
+								wifiConfig.serverIP[i] = (char)BLEReceiveBuff.data[5+i];
+							}
+							controlSemaphore.wifiStutas = addServer;
+						}
+						xSemaphoreGiveFromISR( xSemaphoreWifi, &xHigherPriorityTaskWoken );  //给定WIFI控制信号量	
+					} break;
+					case COMangleData : {} break;
+					default : break;
+				}
+			}		
+		}		
+	}
+	
+}

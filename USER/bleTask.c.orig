@@ -1,0 +1,37 @@
+#include "bleTask.h"
+#include "main.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "list.h"
+#include "portable.h"
+#include "FreeRTOSConfig.h"
+#include "semphr.h"
+#include "usart2.h"
+
+#ifdef USING_BLE
+void BLE_SendDataTask(void *pvParameters)
+{
+	S_FLOAT_XYZ * Q_ANGLE; 
+	portTickType xLastWakeTime;
+	xLastWakeTime = xTaskGetTickCount();
+	
+	while(1)
+	{
+		//printf("\r\n FlashID is \r\n");
+		if( xQueueReceive(xAngleBuffSend, &(Q_ANGLE), ( portTickType ) 0  ) == pdPASS)
+		{
+			if(controlSemaphore.xKeyBleSendData)
+			{
+				if( xSemaphoreTake( xSemaphoreBLESendOver, ( portTickType ) 0 ) == pdTRUE )
+				{	
+					//BLE_SendData(*Q_ANGLE);							
+				}
+			}
+		}
+		vTaskDelayUntil( &xLastWakeTime, 40/portTICK_RATE_MS );
+	}
+}
+#endif
+	
+	

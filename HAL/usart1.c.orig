@@ -1,0 +1,249 @@
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "semphr.h"
+
+#include "stm32f10x.h"
+#include <stdio.h>
+#include "usart1.h"
+
+xSemaphoreHandle xSemaphoreUsart1ReadFull;
+xSemaphoreHandle xSemaphoreUsart1SendOver;
+
+/**********************************************************************
+  * @brief  : ‰∏≤Âè£1DMAÂèëÈÄÅÈÖçÁΩÆ
+  * @param  ÔºöÂèëÈÄÅÁºìÂ≠òÂú∞ÂùÄ
+  * @retval ÔºöÊó†
+  *********************************************************************/
+static void USART1_DMA_TxConfig(uint8_t pUsart1TxBuff[32] )
+{
+		NVIC_InitTypeDef NVIC_InitStructure;
+		DMA_InitTypeDef DMA_InitStructure;
+		RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+		DMA_Cmd(DMA1_Channel4, DISABLE);
+		DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&USART1->DR);	   
+		DMA_InitStructure.DMA_MemoryBaseAddr = (u32)pUsart1TxBuff;
+		DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;	
+		DMA_InitStructure.DMA_BufferSize = 32; 
+		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable; 
+		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;	
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;	 
+		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal ;
+		//DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;	 
+		DMA_InitStructure.DMA_Priority = DMA_Priority_High;  
+		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+		DMA_Init(DMA1_Channel4, &DMA_InitStructure);
+	
+		DMA_ClearFlag(DMA1_FLAG_GL4);
+	
+		DMA_Cmd (DMA1_Channel4,DISABLE);	
+		
+		NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel4_IRQn;
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = INTERRUPT_PRIORITY_DMA1_Channel4;
+		NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
+		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+		NVIC_Init( &NVIC_InitStructure );
+		
+		DMA_ITConfig(DMA1_Channel4, DMA_IT_TC, ENABLE);
+		  
+}
+
+/*-----------------------------------------------------------*/
+
+static void USART1_DMA_RxConfig(uint8_t pUsart1RxBuff[32] )
+{
+
+		DMA_InitTypeDef DMA_InitStructure;
+		RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+		DMA_Cmd(DMA1_Channel5, DISABLE);
+		DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&USART1->DR);	   
+		DMA_InitStructure.DMA_MemoryBaseAddr = (u32)pUsart1RxBuff;
+		DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;	
+		DMA_InitStructure.DMA_BufferSize = 32; 
+		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable; 
+		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;	
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;	 
+		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal ;
+		//DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;	 
+		DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;  
+		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+		DMA_Init(DMA1_Channel5, &DMA_InitStructure);
+	
+		DMA_ClearFlag(DMA1_FLAG_GL5);
+	
+		DMA_Cmd (DMA1_Channel5,ENABLE);	
+
+}
+
+/*-----------------------------------------------------------*/
+
+void DMA1_Channel4_IRQHandler(void)
+{
+	static signed portBASE_TYPE xHigherPriorityTaskWoken;
+	xHigherPriorityTaskWoken = pdFALSE;
+	
+    if(DMA_GetITStatus(DMA1_FLAG_TC4))
+    {
+      DMA_ClearFlag(DMA1_FLAG_GL4);        
+			DMA_Cmd(DMA1_Channel4, DISABLE);
+			xSemaphoreGiveFromISR( xSemaphoreUsart1SendOver, &xHigherPriorityTaskWoken );
+			
+    }
+}
+
+/*-----------------------------------------------------------*/
+
+void USART1_IRQHandler(void)
+{
+
+	static signed portBASE_TYPE xHigherPriorityTaskWoken;
+	xHigherPriorityTaskWoken = pdFALSE;
+
+	if(USART_GetITStatus(USART1, USART_IT_IDLE) != RESET)  // ø’œ–÷–∂œ
+	{
+		DMA_Cmd(DMA1_Channel5, DISABLE);
+		DMA_ClearFlag( DMA1_FLAG_GL5 );           // ?DMA???
+		//LumMod_Rx_Data.index = LUMMOD_RX_BSIZE - DMA_GetCurrDataCounter(DMA1_Channel5); //?????????
+		DMA_SetCurrDataCounter(DMA1_Channel5,32);
+		DMA_Cmd(DMA1_Channel5, ENABLE);
+		USART_ReceiveData( USART1 ); // Clear IDLE interrupt flag bit
+		xSemaphoreGiveFromISR( xSemaphoreUsart1ReadFull, &xHigherPriorityTaskWoken );
+	}
+}
+
+/*-----------------------------------------------------------*/
+
+/*
+ * See the serial2.h header file.
+ */
+void xSerialPortInitMinimal( unsigned long ulWantedBaud, unsigned portBASE_TYPE uxQueueLength )
+{
+	USART_InitTypeDef USART_InitStructure;
+	NVIC_InitTypeDef NVIC_InitStructure;
+	GPIO_InitTypeDef GPIO_InitStructure;
+
+	vSemaphoreCreateBinary( xSemaphoreUsart1ReadFull );
+	vSemaphoreCreateBinary( xSemaphoreUsart1SendOver );
+
+	
+	RCC_APB2PeriphClockCmd( RCC_APB2Periph_USART1 | RCC_APB2Periph_GPIOA, ENABLE );	
+
+	/* Configure USART1 Rx (PA10) as input floating */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init( GPIOA, &GPIO_InitStructure );
+	
+	/* Configure USART1 Tx (PA9) as alternate function push-pull */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+	GPIO_Init( GPIOA, &GPIO_InitStructure );
+
+	USART_InitStructure.USART_BaudRate = ulWantedBaud;
+	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+	USART_InitStructure.USART_StopBits = USART_StopBits_1;
+	USART_InitStructure.USART_Parity = USART_Parity_No ;
+	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+		
+	USART_Init( USART1, &USART_InitStructure );
+	
+	NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = INTERRUPT_PRIORITY_USART1_RX;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init( &NVIC_InitStructure );
+	
+	//USART_ITConfig( USART1, USART_IT_RXNE, ENABLE );
+	
+	USART_ITConfig(USART1, USART_IT_IDLE, ENABLE);
+	
+	USART_Cmd( USART1, ENABLE );
+	USART1_DMA_TxConfig(usart1SendBuff);
+	USART1_DMA_RxConfig(usart1ReceiveBuff);
+	USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);  
+	USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE); 
+//	}
+//	else
+//	{
+//		xReturn = ( xComPortHandle ) 0;
+//	}
+
+	/* This demo file only supports a single port but we have to return
+	something to comply with the standard demo header file. */
+	
+}
+
+
+/*-----------------------------------------------------------*/
+
+void USART1_SendAngle(S_FLOAT_XYZ Q_ANGLE)
+{
+	int _temp;
+	uint8_t sum;
+	
+	usart1SendBuff[0]=0x88;
+	usart1SendBuff[1]=0xAF;
+	usart1SendBuff[2]=0x1C;
+	usart1SendBuff[3]=0;
+	usart1SendBuff[4]=0;
+	usart1SendBuff[5]=0;
+	usart1SendBuff[6]=0;
+	usart1SendBuff[7]=0;
+	usart1SendBuff[8]=0;
+	usart1SendBuff[9]=0;
+	usart1SendBuff[10]=0;
+	usart1SendBuff[11]=0;
+	usart1SendBuff[12]=0;
+	usart1SendBuff[13]=0;
+	usart1SendBuff[14]=0;
+	usart1SendBuff[15]=0;
+	usart1SendBuff[16]=0;
+	usart1SendBuff[17]=0;
+	usart1SendBuff[18]=0;
+	usart1SendBuff[19]=0;
+	usart1SendBuff[20]=0;
+	_temp = (int)(Q_ANGLE.X*100);
+	usart1SendBuff[21]=BYTE1(_temp);
+	usart1SendBuff[22]=BYTE0(_temp);
+	_temp = (int)(Q_ANGLE.Y*100);
+	usart1SendBuff[23]=BYTE1(_temp);
+	usart1SendBuff[24]=BYTE0(_temp);
+	_temp = (int)(Q_ANGLE.Z*20);
+	usart1SendBuff[25]=BYTE1(_temp);
+	usart1SendBuff[26]=BYTE0(_temp);
+	usart1SendBuff[27]=0;
+	usart1SendBuff[28]=0;
+	usart1SendBuff[29]=0;
+	usart1SendBuff[30]=0;
+
+	sum = 0;
+	for(int i=0;i<31;i++)
+		sum += usart1SendBuff[i];
+	usart1SendBuff[31] = sum;	
+	
+	DMA_SetCurrDataCounter(DMA1_Channel4,32);
+  DMA_Cmd(DMA1_Channel4, ENABLE); 
+		
+//	DMA_Cmd(DMA1_Channel4,DISABLE);
+//	DMA_SetCurrDataCounter(DMA1_Channel4,32);
+//	DMA_Cmd (DMA1_Channel4,ENABLE);	
+//	USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);
+	
+//	for(int i=0; i<32; i++)
+//	{
+//		xSerialPutChar( NULL, usart1SendBuff[i], 0 );
+//	}
+	
+}
+
+
+//int fputc(int ch, FILE *f)
+//{
+//	/* Ω´Printfƒ⁄»›∑¢Õ˘¥Æø⁄ */
+//	USART_SendData(USART1, (unsigned char) ch);
+//	while (!(USART1->SR & USART_FLAG_TXE));
+//	
+//	return (ch);
+//}

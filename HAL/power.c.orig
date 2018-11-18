@@ -1,0 +1,74 @@
+#include "stm32f10x.h"
+#include "stm32f10x_it.h"
+#include <stdio.h>
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "list.h"
+#include "portable.h"
+#include "FreeRTOSConfig.h"
+#include "semphr.h"
+
+#include "usart1.h"
+#include "delay.h"
+#include "led.h"
+#include "I2C.h"
+#include "MPU9250.h"
+#include "imu.h"
+#include "tim.h"
+#include "ADC.h"
+#include "moto.h"
+#include "ble.h"
+#include "key.h"
+#include "comm.h"
+#include "power.h"
+
+
+void powerInit(void)
+{
+	/*开第二个稳压芯片使能IO*/
+	GPIO_InitTypeDef GPIO_InitStructure;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO , ENABLE);
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12; 
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz; 
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+	GPIO_SetBits(GPIOB, GPIO_Pin_12);
+	
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4; 
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz; 
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD; 
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+	GPIO_ResetBits(GPIOB, GPIO_Pin_4);
+	
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR , ENABLE);
+}
+
+/*-----------------------------------------------------------*/
+
+void powerOff(void)
+{
+	BLE_EN(OFF);
+	BLE_BRTS(OFF);
+	vcc2Power(OFF);
+	Moto_PwmRflash(0);	
+	MPU6500_setSleepEnabled(1);
+	stup_delay_ms(500);
+
+	GPIO_ResetBits(GPIOB, GPIO_Pin_12);
+	
+	PWR_WakeUpPinCmd(ENABLE);
+	PWR_EnterSTANDBYMode();
+
+}
+
+/*-----------------------------------------------------------*/
+
+//void powerOn(void)
+//{
+//	GPIO_SetBits(GPIOB, GPIO_Pin_12);
+//	
+//}
+
+

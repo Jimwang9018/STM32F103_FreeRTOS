@@ -1,0 +1,63 @@
+#include "imuTask.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "list.h"
+#include "portable.h"
+#include "FreeRTOSConfig.h"
+#include "semphr.h"
+
+#include "imu.h"
+#include "flash.h"
+#include "comm.h"
+#include "MPU9250.h"
+
+void vIMUTask(void *pvParameters)
+{
+	portTickType xLastWakeTime;
+	static S_FLOAT_XYZ Q_ANGLE;
+	static S_FLOAT_XYZ *pQ_ANGLE;
+	
+	MPU6500_Init();
+	FLASH_Unlock();
+	EE_INIT();
+	//EE_READ_ACC_OFFSET();
+	EE_READ_GYRO_OFFSET();
+	
+	#ifdef DEBUG_PC
+		u8 devID = I2C_ReadOneByte(devAddr,0X75);
+		printf("devID = 0x%0x", devID);
+	#endif
+	
+	xAngleBuffSend = xQueueCreate( 1, ( unsigned portBASE_TYPE ) sizeof(S_FLOAT_XYZ*) );
+	xAngleBuffStorage = xQueueCreate( 1, ( unsigned portBASE_TYPE ) sizeof(S_FLOAT_XYZ*) );
+	xLastWakeTime = xTaskGetTickCount();
+	
+	while(1)
+	{
+		pQ_ANGLE = &Q_ANGLE;
+		taskENTER_CRITICAL();
+		{
+			Prepare_Data();
+			Get_Attitude(&Q_ANGLE);
+		}
+		taskEXIT_CRITICAL();
+			
+		if( xQueueSend( xAngleBuffStorage, (void *)&pQ_ANGLE, ( portTickType ) 0  ) == pdPASS )
+		{
+			#ifdef DEBUG_PC
+				printf("storage angle data error\r\n", devID);
+			#endif
+		}
+		
+		if( xQueueSend( xAngleBuffSend, (void *)&pQ_ANGLE, ( portTickType ) 0  ) == pdPASS )
+		{
+			#ifdef DEBUG_PC
+				printf("send angle data error\r\n", devID);
+			#endif
+		}
+		vTaskDelayUntil( &xLastWakeTime, 5/portTICK_RATE_MS );
+	}
+	
+}
+

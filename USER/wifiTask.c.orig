@@ -1,0 +1,191 @@
+#include "esp8266.h"
+#include "wifiSendTask.h"
+#include "powerTask.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "list.h"
+#include "portable.h"
+#include "FreeRTOSConfig.h"
+#include "semphr.h"
+#include "usart3.h"
+#include <string.h>
+#include <stdio.h>
+#include "usart1.h"
+#include "usart2.h"
+#include "usart3.h"
+#include "delay.h"
+#include "main.h"
+#include "esp8266.h"
+#include "flashFunction.h"
+#include "key.h"
+#include "led.h"
+
+static void ErrManger(u8 errData)
+{
+		if(errData != 0)
+		{
+				BLE.SendErrData(errData);
+				//#ifdef PC_DEBUG
+//						printf("error:0x%x",errData);
+				//#endif
+		}
+}
+
+void vWifiSendTask(void *pvParameters)
+{				
+		u8 wifiTransDataFlag = 0, temp = 0;
+		u32 cont = 0;
+		static u8 sendDataFlag = 0;	
+		xSemaphoreTake( Usart3.xSemaphoreUsart3ReadFull, ( portTickType ) 0 );
+
+    while(1)
+    {
+        if(WIFI.mode == WIFI_SET_MODE)
+				{		
+					WIFI.active = true;
+					
+						
+				}
+				
+				else if(WIFI.mode == WIFI_TRANS_MODE)
+				{				
+						if(FlashFun.readRegisterData() == 1)
+						{
+								WIFI.active = true;
+								static u8 temp = 0;
+								u8 cont;
+								cont = 0;
+								WIFI.Init();
+								temp = WIFI.CreatLink();
+								ErrManger(temp);
+								WIFI.UnvarnishSend();
+							
+								FlashFun.brushDataStart			= FlashFun.getStartAddress();
+								FlashFun.brushDataStartOld  = FlashFun.brushDataStart;
+								FlashFun.brushDataEnd				= FlashFun.getEndAddress();
+								FlashFun.brushDataEndOld		= FlashFun.brushDataEnd;
+
+								if(temp != 0)
+								{
+										Usart2.Printf("error code : %x\r\n",temp);
+										printf("error code : %x\r\n",temp);
+										WIFI.mode = WIFI_STANDBY_MODE;
+								}
+								else 
+								{
+										WIFI.isSendData = true;
+										sendDataFlag = FLASH_KEEP_READ;					
+										while(sendDataFlag == FLASH_KEEP_READ )
+										{
+												sendDataFlag = FlashFun.readData();
+												WIFI.SendDataToServer();	
+												LED.BlueLedBlink();										
+												vTaskDelay( 500/portTICK_RATE_MS );
+												
+										}
+										WIFI.isSendData = false;
+										FlashFun.eraseSendedData();								
+								}
+						}else
+						{
+								printf("no link data\r\n");
+						}
+						vTaskDelay( 500/portTICK_RATE_MS );
+						WIFI.OutUnvarnish();
+						WIFI.Enable(DISABLE);
+						WIFI.mode = WIFI_STANDBY_MODE;
+				}
+				
+				else																	//判断刷牙上传条件：1、刷牙时间超过1分钟。2、电量足够
+				{
+					WIFI.active = false;
+					if(KEY.status == ON)
+					{
+						if(++cont >= 120)  							//计时一分钟 刷牙超过一分钟
+						{								
+							wifiTransDataFlag = 1;
+							
+						}							
+					}else if(KEY.status == OFF && wifiTransDataFlag == 1)
+					{
+							wifiTransDataFlag = 0;
+							FlashFun.setStartAddress(FlashFun.brushDataStart);
+							FlashFun.setEndAddress(FlashFun.brushDataEnd);
+							WIFI.mode = WIFI_TRANS_MODE;
+						
+					}
+						vTaskDelay(50/portTICK_RATE_MS );
+				}
+    }
+}
+
+
+void wifiSetMode()
+{
+		switch(WIFI.setStep)
+		{
+				case SET_STEP_LIST_AP :
+				{		
+						temp = WIFI.Init();
+						ErrManger(temp);
+						if( xSemaphoreTake( WIFI.xSemaphoreListAP, portMAX_DELAY ) == pdTRUE )	
+						{
+								temp = WIFI.ListAP();
+								ErrManger(temp);							
+											WIFI.setStep = SET_STEP_LINK;
+									}
+							}	break;
+							
+							case SET_STEP_LINK :
+							{
+									if(WIFI.xSemaphoreAddAP != NULL)
+									{
+											if( xSemaphoreTake( WIFI.xSemaphoreAddAP, portMAX_DELAY ) == pdTRUE )
+											{		
+													temp = WIFI.AddAPLinkServer();
+													ErrManger(temp);	
+													FlashFun.storgeLinkData(WIFI.linkData);											
+											}
+											WIFI.setStep = SET_REIGSTER_SERVER;
+									}
+									
+							} break;
+							
+							case SET_REIGSTER_SERVER :
+							{
+								
+									if(xSemaphoreTake( WIFI.xSemaphoreRegisterServer, portMAX_DELAY ) == pdTRUE)
+									{		
+											WIFI.UnvarnishSend();
+											WIFI.RegisterToServer();
+											if( xSemaphoreTake( Usart3.xSemaphoreUsart3ReadFull, ( portTickType ) 10000 ) == pdTRUE )
+											{
+													if(Usart3.RxBuff.data[0] == 0x88)
+													{
+															if(Usart3.RxBuff.data[6] == 0x01)
+															{
+																	Usart2.Printf("register successed!\r\n");
+																	FlashFun.saveRegisterData();
+															}
+													}
+											} else
+											{
+													Usart2.Printf("register error!\r\n");
+											}
+									}
+														
+									WIFI.setStep = SET_OVER;
+								
+							}	break;
+							
+							case SET_OVER :
+							{
+									WIFI.OutUnvarnish();
+									WIFI.Enable(DISABLE);
+									WIFI.mode = WIFI_STANDBY_MODE;
+							} break;
+							default : break;
+							
+					}
+}

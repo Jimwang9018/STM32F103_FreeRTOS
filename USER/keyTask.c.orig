@@ -1,0 +1,83 @@
+#include "keyTask.h"
+#include "stm32f10x.h"
+#include "stm32f10x_it.h"
+#include <stdio.h>
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "list.h"
+#include "portable.h"
+#include "FreeRTOSConfig.h"
+#include "semphr.h"
+
+#include "usart1.h"
+#include "usart2.h"
+#include "delay.h"
+#include "led.h"
+#include "I2C.h"
+#include "MPU9250.h"
+#include "imu.h"
+#include "tim.h"
+#include "ADC.h"
+#include "moto.h"
+#include "ble.h"
+#include "key.h"
+#include "comm.h"
+#include "power.h"
+#include "flash.h"
+#include "dog.h"
+#include "bleTask.h"
+
+void vKeyOnTask(void *pvParameters)
+{
+	static u8 KEY_static = 0;
+	portTickType xLastWakeTime;
+	vTaskDelay( 500/portTICK_RATE_MS );
+	keyInitPort();
+	xLastWakeTime = xTaskGetTickCount();
+	
+	while(1)
+	{
+		if( xSemaphoreKeyOn != NULL )
+    {
+			if( xSemaphoreTake( xSemaphoreKeyOn, portMAX_DELAY ) == pdTRUE )
+			{
+				
+				vTaskDelayUntil( &xLastWakeTime, 5/portTICK_RATE_MS );
+				
+				if( getKEYVALUE & KEYON )
+				{
+					//vTaskDelayUntil( &xLastWakeTime, 40/portTICK_RATE_MS );
+					while( getKEYVALUE & KEYON);
+					vTaskDelayUntil( &xLastWakeTime, 20/portTICK_RATE_MS );
+					if( getKEYVALUE == 0)
+					{
+						KEY_static = ~KEY_static;
+						if(KEY_static)
+						{
+							if( xSemaphoreTake( xSemaphoreBLESendOver, ( portTickType ) 50 ) == pdTRUE )
+							{
+								BLE_SendCmd(CmdBurshOn);
+							}
+							//vTaskDelayUntil( &xLastWakeTime, 40/portTICK_RATE_MS );
+							brushSwith(ON);
+							controlSemaphore.burshStatus = ON;
+						}else{
+						
+							brushSwith(OFF);
+							controlSemaphore.burshStatus = OFF;
+							//vTaskDelayUntil( &xLastWakeTime, 40/portTICK_RATE_MS );
+							if( xSemaphoreTake( xSemaphoreBLESendOver, ( portTickType ) 50 ) == pdTRUE )
+							{
+								BLE_SendCmd(CmdBurshOff);
+							}
+						}
+					}						
+				}
+			}		
+    }
+	}
+
+}
+

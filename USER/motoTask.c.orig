@@ -1,0 +1,31 @@
+#include "FreeRTOS.h"
+#include "semphr.h"
+#include "FreeRTOSConfig.h"
+#include "main.h" 
+#include "moto.h"
+
+void  vMotoTask(void *pvParameters)
+{
+	static u16 cont = 0;
+	while(1)
+	{
+		if(controlSemaphore.charging == 0)																											//À¢—¿Ã· æ
+		{
+			if(controlSemaphore.bleConncet != 1)
+			{
+				if(controlSemaphore.xKeyLedGreenControl)
+				{
+					
+					Moto_PwmRflash(800);  
+					vTaskDelay( 200/portTICK_RATE_MS );
+					Moto_PwmRflash(0);
+					vTaskDelay( 100/portTICK_RATE_MS );
+				}else{
+					Moto_PwmRflash(0);
+				}		
+			}
+		}
+		vTaskDelay( 10/portTICK_RATE_MS );
+	}
+	
+}

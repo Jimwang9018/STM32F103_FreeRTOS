@@ -1,0 +1,55 @@
+#ifndef _BLE_BLE_H
+#define _BLE_BLE_H
+
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "semphr.h"
+#include "imu.h"
+
+#define ON  1
+#define OFF 0
+
+#define BLE_EN(a) if(a) GPIO_ResetBits(GPIOB, GPIO_Pin_15);\
+									else  GPIO_SetBits(GPIOB, GPIO_Pin_15);
+
+#define BLE_BRTS(a) if(a) GPIO_ResetBits(GPIOB, GPIO_Pin_14);\
+												else  GPIO_SetBits(GPIOB, GPIO_Pin_14);
+
+#define BleRecevieBuffLength    128
+
+typedef struct {
+	uint8_t length;
+	uint8_t data[BleRecevieBuffLength];
+} BLE_APPBuff;
+
+enum commandID { COMnoControl, COMbasedControl, COMwifiControl, COMangleData};
+
+
+
+extern enum commandID command;
+extern u8 bleConncet;
+
+
+
+extern enum commandAck AckToApp;
+extern enum commandToApp CmdToApp;
+					
+enum commandAck {AckBurshOn, AckBurshOff};
+enum commandToApp {CmdBurshOn, CmdBurshOff};
+
+void BLE_SendCmd(enum commandToApp CmdApp);
+void BLE_SendAck(enum commandAck Ack);
+
+typedef void * xComPortHandle;
+extern xSemaphoreHandle xSemaphoreBLEReadFull;
+extern xSemaphoreHandle xSemaphoreBLESendOver;
+
+extern BLE_APPBuff BLEReceiveBuff;
+
+void BLESendDataInit( unsigned long ulWantedBaud, unsigned portBASE_TYPE uxQueueLength );
+void BLE_SendData(S_FLOAT_XYZ Q_ANGLE);
+void BLE_SendStorageData(uint8_t data[6]);
+void BLEIOInit(void);
+u8 APPbuffDataPrepare(BLE_APPBuff * pBuff);
+
+#endif

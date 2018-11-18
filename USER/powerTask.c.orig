@@ -1,0 +1,84 @@
+#include "powerTask.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "list.h"
+#include "portable.h"
+#include "FreeRTOSConfig.h"
+#include "semphr.h"
+
+#include "usart1.h"
+#include "usart2.h"
+#include "delay.h"
+#include "led.h"
+#include "I2C.h"
+#include "MPU9250.h"
+#include "imu.h"
+#include "tim.h"
+#include "ADC.h"
+#include "moto.h"
+#include "ble.h"
+#include "key.h"
+#include "comm.h"
+#include "power.h"
+#include "flash.h"
+#include "dog.h"
+#include "bleTask.h"
+
+
+void vPowerTask(void *pvParameters)
+{
+	portTickType xLastWakeTime;
+	static uint8_t time30sCont = 0;
+	xLastWakeTime = xTaskGetTickCount();
+	static u8 cont;
+	static float vccValue;
+	
+	while(1)
+	{
+		if(controlSemaphore.burshStatus)
+		{
+			time30sCont = 0;
+		}else if(++time30sCont == 250)
+		{
+			vTaskSuspendAll();
+			taskENTER_CRITICAL();
+			powerOff();
+		}
+		
+		if(chargeTest())
+		{
+			if(++cont == 3)
+			{
+				cont = 0;
+				controlSemaphore.charging = 1;
+			}
+		}else
+		{
+			if(++cont == 3)
+			{
+				cont = 0;
+				controlSemaphore.charging = 0;
+			}
+		}
+		
+//		vccValue = (float)ADC_ConvertedValue[1] * 0.001611;  //µÁ—πºÏ≤‚
+//		if(vccValue <= 3.6 )
+//		{
+//			controlSemaphore.batterValue = LOW;
+//		}
+//		
+//		if(vccValue <= 3.4)
+//		{
+//				
+//			vTaskDelay( 4000/portTICK_RATE_MS );
+//			
+//			vTaskSuspendAll();
+//			taskENTER_CRITICAL();
+//			powerOff();
+//		}
+		
+		vTaskDelayUntil( &xLastWakeTime, 1000/portTICK_RATE_MS );
+	}
+}
+
